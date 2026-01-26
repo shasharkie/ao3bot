@@ -3,38 +3,37 @@ import requests
 import os
 import tempfile
 import re
-from flask import Flask
-from threading import Thread
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from urllib.parse import urlparse
+from typing import Optional
+
+from aiogram import Bot, Dispatcher, Router, F
+from aiogram.types import Message, FSInputFile
+from aiogram.filters import Command, CommandStart
+from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
+import asyncio
 
 # Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO)
+    level=logging.INFO
+)
 
 BOT_TOKEN = "8256763899:AAGB3QTtW2lpqYOzd0BXwdZ5LfRzzDo8lN8"
 AO3_BASE_URL = "https://archiveofourown.gay"
 
-# Flask app для поддержания активности
-app = Flask('')
+# Инициализация бота и диспетчера
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+dp = Dispatcher()
+router = Router()
+dp.include_router(router)
 
-@app.route('/')
-def home():
-    return "I'm alive"
-
-def run_flask():
-    app.run(host='0.0.0.0', port=5000)
-
-def keep_alive():
-    t = Thread(target=run_flask)
-    t.start()
 
 class AO3Downloader:
+    """Класс для работы с AO3"""
 
     @staticmethod
-    def extract_work_id(url):
+    def extract_work_id(url: str) -> Optional[str]:
         """Извлекает ID работы из URL AO3"""
         try:
             logging.info(f"🔍 Анализируем URL: {url}")
@@ -63,7 +62,7 @@ class AO3Downloader:
             return None
 
     @staticmethod
-    def get_work_title(work_id):
+    def get_work_title(work_id: str) -> Optional[str]:
         """Получает название фанфика из HTML страницы"""
         try:
             work_url = f"{AO3_BASE_URL}/works/{work_id}"
@@ -103,7 +102,7 @@ class AO3Downloader:
             return None
 
     @staticmethod
-    def get_epub_download_url(work_id):
+    def get_epub_download_url(work_id: str) -> str:
         """Получает прямую ссылку для скачивания EPUB"""
         try:
             work_url = f"{AO3_BASE_URL}/works/{work_id}?view_adult=true"
@@ -148,7 +147,7 @@ class AO3Downloader:
             return f"{AO3_BASE_URL}/downloads/{work_id}/download.epub"
 
     @staticmethod
-    def download_epub(work_id):
+    def download_epub(work_id: str) -> tuple[Optional[str], Optional[str]]:
         """Скачивает EPUB файл и возвращает путь и название"""
         try:
             work_title = AO3Downloader.get_work_title(work_id)
@@ -203,7 +202,9 @@ class AO3Downloader:
             logging.error(f"💥 Ошибка при скачивании: {e}")
             return None, None
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+@router.message(CommandStart())
+async def cmd_start(message: Message):
     """Обработчик команды /start"""
     welcome_text = """здравствуй! 
 
@@ -233,23 +234,24 @@ hi! this bot can help you download a fanfiction from the website "archive of our
 bot can  download any fanfiction 
 send a link and bot will give you the file with your chosen fanfiction!"""
 
-    await update.message.reply_text(welcome_text)
+    await message.answer(welcome_text)
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+@router.message(F.text)
+async def handle_message(message: Message):
     """Обработчик текстовых сообщений"""
-    user_message = update.message.text.strip()
-    logging.info(f"📨 Получено сообщение: {user_message}")
+    user_message = message.text.strip()
+    logging.info(f"📨 Получено сообщение от {message.from_user.id}: {user_message}")
 
     if ('archiveofourown.org' in user_message or 'archiveofourown.gay' in user_message) and '/works/' in user_message:
-        await update.message.reply_text("🔍 Анализирую ссылку...")
+        await message.answer("🔍 Анализирую ссылку...")
 
         work_id = AO3Downloader.extract_work_id(user_message)
 
         if work_id:
-            await update.message.reply_text(f"📚 Найден фанфик ID: {work_id}\n⏳ Получаю информацию...")
+            await message.answer(f"📚 Найден фанфик ID: {work_id}\n⏳ Получаю информацию...")
 
-            await update.message.chat.send_action(action="typing")
-
+            # Скачиваем файл
             epub_path, filename = AO3Downloader.download_epub(work_id)
 
             if epub_path and os.path.exists(epub_path):
@@ -258,25 +260,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     logging.info(f"📦 Размер файла: {file_size} байт")
 
                     if file_size > 50 * 1024 * 1024:
-                        await update.message.reply_text("❌ Файл слишком большой (>50MB) для Telegram")
+                        await message.answer("❌ Файл слишком большой (>50MB) для Telegram")
                     else:
-                        await update.message.reply_text("✅ Файл скачан! Отправляю...")
-                        with open(epub_path, 'rb') as epub_file:
-                            await update.message.reply_document(
-                                document=epub_file,
-                                filename=filename,
-                                caption=f"📖 {filename.replace('.epub', '')}\n🌐 Скачано через зеркало AO3"
-                            )
-                        await update.message.reply_text("🎉 Готово!")
+                        await message.answer("✅ Файл скачан! Отправляю...")
+
+                        # Отправляем файл
+                        document = FSInputFile(epub_path, filename=filename)
+                        await message.answer_document(
+                            document=document,
+                            caption=f"📖 {filename.replace('.epub', '')}\n🌐 Скачано через зеркало AO3"
+                        )
+                        await message.answer("🎉 Готово!")
 
                 except Exception as e:
                     logging.error(f"❌ Ошибка отправки: {e}")
-                    await update.message.reply_text("❌ Ошибка при отправке файла")
+                    await message.answer("❌ Ошибка при отправке файла")
 
-                try:
-                    os.unlink(epub_path)
-                except:
-                    pass
+                finally:
+                    # Удаляем временный файл
+                    try:
+                        os.unlink(epub_path)
+                    except Exception as e:
+                        logging.error(f"Ошибка удаления файла: {e}")
             else:
                 error_msg = """❌ Не удалось скачать файл.
 
@@ -286,34 +291,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • Фанфик требует регистрации
 
 💡 Попробуйте другой фанфик."""
-                await update.message.reply_text(error_msg)
+                await message.answer(error_msg)
         else:
-            await update.message.reply_text("❌ Не могу извлечь ID из ссылки.")
+            await message.answer("❌ Не могу извлечь ID из ссылки.")
     else:
-        await update.message.reply_text("❌ Это не ссылка на фанфик AO3.")
+        await message.answer("❌ Это не ссылка на фанфик AO3.")
 
-def main():
+
+async def main():
     """Основная функция"""
-    print("🚀 Запуск бота с Flask сервером...")
+    print("🚀 Запуск бота на aiogram...")
     print("🌐 Используется зеркало: https://archiveofourown.gay")
     print("📚 Файлы сохраняются с оригинальными названиями")
     print("⚡ Работает без VPN!")
     print("⏹️  Ctrl+C для остановки\n")
 
-    # Запускаем Flask сервер в отдельном потоке
-    keep_alive()
-
     try:
-        application = Application.builder().token(BOT_TOKEN).build()
-        application.add_handler(CommandHandler("start", start))
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+        await dp.start_polling(bot)
+    finally:
+        await bot.session.close()
 
-        print("🤖 Бот запущен и готов к работе!")
-        print("🌐 Flask сервер запущен на порту 5000")
-        application.run_polling()
-
-    except Exception as e:
-        print(f"💥 Ошибка: {e}")
 
 if __name__ == '__main__':
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n🛑 Бот остановлен")
