@@ -19,7 +19,8 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-BOT_TOKEN = "8256763899:AAGB3QTtW2lpqYOzd0BXwdZ5LfRzzDo8lN8"
+# Получаем токен из переменных окружения или используем по умолчанию
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8256763899:AAGB3QTtW2lpqYOzd0BXwdZ5LfRzzDo8lN8")
 AO3_BASE_URL = "https://archiveofourown.gay"
 
 # Инициализация бота и диспетчера
@@ -28,10 +29,9 @@ dp = Dispatcher()
 router = Router()
 dp.include_router(router)
 
-
 class AO3Downloader:
     """Класс для работы с AO3"""
-
+    
     @staticmethod
     def extract_work_id(url: str) -> Optional[str]:
         """Извлекает ID работы из URL AO3"""
@@ -202,7 +202,6 @@ class AO3Downloader:
             logging.error(f"💥 Ошибка при скачивании: {e}")
             return None, None
 
-
 @router.message(CommandStart())
 async def cmd_start(message: Message):
     """Обработчик команды /start"""
@@ -236,7 +235,6 @@ send a link and bot will give you the file with your chosen fanfiction!"""
 
     await message.answer(welcome_text)
 
-
 @router.message(F.text)
 async def handle_message(message: Message):
     """Обработчик текстовых сообщений"""
@@ -263,7 +261,7 @@ async def handle_message(message: Message):
                         await message.answer("❌ Файл слишком большой (>50MB) для Telegram")
                     else:
                         await message.answer("✅ Файл скачан! Отправляю...")
-
+                        
                         # Отправляем файл
                         document = FSInputFile(epub_path, filename=filename)
                         await message.answer_document(
@@ -297,9 +295,8 @@ async def handle_message(message: Message):
     else:
         await message.answer("❌ Это не ссылка на фанфик AO3.")
 
-
 async def main():
-    """Основная функция"""
+    """Основная функция бота"""
     print("🚀 Запуск бота на aiogram...")
     print("🌐 Используется зеркало: https://archiveofourown.gay")
     print("📚 Файлы сохраняются с оригинальными названиями")
@@ -310,10 +307,3 @@ async def main():
         await dp.start_polling(bot)
     finally:
         await bot.session.close()
-
-
-if __name__ == '__main__':
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\n🛑 Бот остановлен")
