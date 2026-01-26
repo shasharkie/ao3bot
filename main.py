@@ -3,15 +3,42 @@ import requests
 import os
 import tempfile
 import re
+import asyncio
 from urllib.parse import urlparse
+from threading import Thread
+from flask import Flask
 from typing import Optional
 
+# Flask для keep-alive
+app = Flask('')
+@app.route('/')
+def home():
+    return "I'm alive"
+
+def run_flask():
+    app.run(host='0.0.0.0', port=5000)
+
+def keep_alive():
+    t = Thread(target=run_flask, daemon=True)
+    t.start()
+
+# Устанавливаем aiogram при запуске
+import subprocess
+import sys
+try:
+    import aiogram
+except ImportError:
+    print("Устанавливаем aiogram...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "aiogram==3.12.0"])
+    import aiogram
+
+# Теперь импортируем все что нужно
 from aiogram import Bot, Dispatcher, Router, F
 from aiogram.types import Message, FSInputFile
 from aiogram.filters import Command, CommandStart
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
-import asyncio
+
 
 # Настройка логирования
 logging.basicConfig(
