@@ -249,7 +249,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         work_id = AO3Downloader.extract_work_id(user_message)
 
         if work_id:
-            await update.message.reply_text(f"📚 fic ID found: {work_id}\n⏳ getting the info...")
+            await update.message.reply_text(
+                f"📚 fic ID found: {work_id}\n⏳ getting the info...",
+                protect_content=True
+            )
 
             await update.message.chat.send_action(action="typing")
 
@@ -261,20 +264,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     logging.info(f"📦 file size: {file_size} b")
 
                     if file_size > 50 * 1024 * 1024:
-                        await update.message.reply_text("❌ the file is too large (>50MB) for Telegram")
+                        await update.message.reply_text(
+                            "❌ the file is too large (>50MB) for Telegram",
+                            protect_content=True
+                        )
                     else:
                         await update.message.reply_text("✅ the file is downloaded! sending...")
                         with open(epub_path, 'rb') as epub_file:
                             await update.message.reply_document(
                                 document=epub_file,
                                 filename=filename,
-                                caption=f"📖 {filename.replace('.epub', '')}\n🌐 downloaded through AO3 mirror"
+                                caption=f"📖 {filename.replace('.epub', '')}\n🌐 downloaded through AO3 mirror",
+                                protect_content=True
                             )
                         await update.message.reply_text("🎉 done!")
 
                 except Exception as e:
                     logging.error(f"❌ Ошибка отправки: {e}")
-                    await update.message.reply_text("❌ an error while sending the file")
+                    await update.message.reply_text("❌ an error while sending the file",
+                     protect_content=True)
 
                 try:
                     os.unlink(epub_path)
