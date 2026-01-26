@@ -1,12 +1,13 @@
 FROM python:3.11-slim
 WORKDIR /app
-COPY requirements.txt .
 
-RUN pip install --no-cache-dir aiogram==3.12.0
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir \
+    aiogram==3.12.0 \
+    requests==2.31.0 \
+    Flask==3.0.2 \
+    python-dotenv==1.0.0 \
+    aiohttp==3.9.3
 
 COPY . .
-
-RUN python -c "import aiogram; print(f'aiogram {aiogram.__version__} установлен')"
 
 CMD ["python", "main_with_flask.py"]
