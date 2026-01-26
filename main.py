@@ -9,6 +9,25 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from urllib.parse import urlparse
 
+def is_ao3_link(text: str) -> bool:
+    """cheks if the link is ao3 fic"""
+    patterns = [
+        r'https?://archiveofourown\.(?:org|gay)/works/\d+',
+        r'archiveofourown\.(?:org|gay)/works/\d+',
+        r'https?://(?:www\.)?archiveofourown\.(?:org|gay)/works/\d+',
+    ]
+    
+    for pattern in patterns:
+        if re.search(pattern, text, re.IGNORECASE):
+            return True
+    return False
+
+class AO3Filter(filters.MessageFilter):
+    def filter(self, message):
+        return is_ao3_link(message.text) if message.text else False
+
+
+
 # logging settings
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -290,8 +309,11 @@ def main():
     try:
         application = Application.builder().token(BOT_TOKEN).build()
         application.add_handler(CommandHandler("start", start))
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
+        
+        # Только этот хендлер измените
+        ao3_filter = AO3Filter()
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & ao3_filter, handle_message)) 
+        
         print("🤖 the bot is running and ready!")
         print("🌐 Flask server is running on port 5000")
         application.run_polling()
