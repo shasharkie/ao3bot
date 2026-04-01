@@ -250,8 +250,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if work_id:
             await update.message.reply_text(
-                f"📚 fic ID found: {work_id}\n⏳ getting the info...",
-                protect_content=True
+                f"📚 fic ID found: {work_id}\n⏳ getting the info..."
+              
             )
 
             await update.message.chat.send_action(action="typing")
@@ -265,8 +265,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                     if file_size > 50 * 1024 * 1024:
                         await update.message.reply_text(
-                            "❌ the file is too large (>50MB) for Telegram",
-                            protect_content=True
+                            "❌ the file is too large (>50MB) for Telegram"
+                          
                         )
                     else:
                         await update.message.reply_text("✅ the file is downloaded! sending...")
@@ -280,8 +280,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 except Exception as e:
                     logging.error(f"❌ error: {e}")
-                    await update.message.reply_text("❌ an error while sending the file",
-                     protect_content=True)
+                    await update.message.reply_text("❌ an error while sending the file"
+                    )
 
                 try:
                     os.unlink(epub_path)
