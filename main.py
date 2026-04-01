@@ -274,13 +274,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             await update.message.reply_document(
                                 document=epub_file,
                                 filename=filename,
-                                caption=f"📖 {filename.replace('.epub', '')}\n🌐 downloaded through AO3 mirror",
-                                protect_content=True
+                                caption=f"📖 {filename.replace('.epub', '')}\n🌐 downloaded through AO3 mirror"
                             )
                         await update.message.reply_text("🎉 done!")
 
                 except Exception as e:
-                    logging.error(f"❌ Ошибка отправки: {e}")
+                    logging.error(f"❌ error: {e}")
                     await update.message.reply_text("❌ an error while sending the file",
                      protect_content=True)
 
